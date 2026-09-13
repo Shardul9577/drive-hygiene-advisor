@@ -1,0 +1,31 @@
+# Dependencies — unanchored, so backend/ and frontend/ are covered too
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# Runtime persistence (scan jobs, audit trail)
+backend/data/
+data/
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.pem
