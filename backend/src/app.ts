@@ -11,6 +11,7 @@ import { config } from "./config/env.js";
 import { configurePassport } from "./config/passport.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { scanRoutes } from "./routes/scanRoutes.js";
+import { googleAddonHandler } from "./controllers/GoogleAddonController.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 configurePassport();
@@ -36,7 +37,7 @@ export function createApp() {
       credentials: true,
     }),
   );
-  app.use(express.json({ limit: "32kb" }));
+  app.use(express.json({ limit: "256kb" }));
   app.use(cookieParser());
   app.use(
     session({
@@ -76,6 +77,10 @@ export function createApp() {
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, service: "drive-hygiene-backend" });
   });
+
+  // Google Workspace Add-on entrypoint (HTTPS POST → Card JSON).
+  // Manifest runFunction must point here, not at the Vercel frontend.
+  app.post("/google-addon", googleAddonHandler);
 
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/scan", scanRoutes);
