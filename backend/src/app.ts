@@ -87,7 +87,9 @@ export function createApp() {
 
   // Google Workspace Add-on entrypoint (HTTPS POST → Card JSON).
   // Manifest runFunction must point here, not at the Vercel frontend.
-  app.post("/google-addon", googleAddonHandler);
+  app.post("/google-addon", (req, res, next) => {
+    void googleAddonHandler(req, res).catch(next);
+  });
 
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/scan", scanRoutes);

@@ -152,6 +152,12 @@ function decodeError(error: string) {
   if (error === "auth_failed" || error === "login_failed") {
     return "Google sign-in failed. Please try again.";
   }
+  if (error === "addon_handoff_expired") {
+    return "That Drive add-on link expired. Open the add-on again, or sign in below.";
+  }
+  if (error === "addon_handoff_failed") {
+    return "Could not finish sign-in from the Drive add-on. Please sign in below.";
+  }
   return decodeURIComponent(error);
 }
 

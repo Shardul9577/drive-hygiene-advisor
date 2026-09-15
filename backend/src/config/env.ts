@@ -32,7 +32,9 @@ function resolveSessionSecret(): string {
 
 /**
  * FRONTEND_URL may be a single origin or a comma-separated allowlist.
- * The first entry is the default redirect target after OAuth.
+ * The first entry is the default redirect target after OAuth locally.
+ * In production we prefer an https origin so Google Add-on openLink never
+ * points at localhost when both are listed.
  */
 function resolveFrontendOrigins(): string[] {
   const fromPrimary = process.env.FRONTEND_URL ?? "http://localhost:5173";
@@ -43,7 +45,16 @@ function resolveFrontendOrigins(): string[] {
   return [...new Set(origins)];
 }
 
+function resolveDefaultFrontendUrl(origins: string[]): string {
+  if (nodeEnv === "production") {
+    const httpsOrigin = origins.find((origin) => origin.startsWith("https://"));
+    if (httpsOrigin) return httpsOrigin;
+  }
+  return origins[0] ?? "http://localhost:5173";
+}
+
 const frontendOrigins = resolveFrontendOrigins();
+const frontendUrl = resolveDefaultFrontendUrl(frontendOrigins);
 
 /**
  * Vercel (HTTPS) + Render (HTTPS) are different sites. Credentialed fetches only
@@ -67,8 +78,8 @@ function resolveCookiePolicy(): { sameSite: "lax" | "none"; secure: boolean } {
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv,
-  /** Default post-OAuth redirect (first allowlisted origin). */
-  frontendUrl: frontendOrigins[0] ?? "http://localhost:5173",
+  /** Default post-OAuth / add-on handoff redirect. */
+  frontendUrl,
   /** All origins allowed for CORS + OAuth return redirects. */
   frontendOrigins,
   cookie: resolveCookiePolicy(),

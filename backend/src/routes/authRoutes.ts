@@ -8,5 +8,8 @@ authRoutes.get("/google", (req, res, next) => {
   void AuthController.googleStart(req, res, next);
 });
 authRoutes.get("/google/callback", AuthController.googleCallback);
+authRoutes.get("/addon-handoff", (req, res) => {
+  void AuthController.addonHandoff(req, res);
+});
 authRoutes.get("/me", AuthController.me);
 authRoutes.post("/logout", AuthController.logout);

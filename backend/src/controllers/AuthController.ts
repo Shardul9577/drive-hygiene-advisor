@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import passport from "passport";
 import { config, isGoogleConfigured } from "../config/env.js";
 import { UserModel } from "../models/UserModel.js";
+import { AddonHandoff } from "../services/auth/addonHandoff.js";
+import { audit } from "../services/audit/auditLog.js";
 
 declare module "express-session" {
   interface SessionData {
@@ -110,6 +112,42 @@ export const AuthController = {
         res.redirect(`${frontend}/dashboard`);
       });
     })(req, res, next);
+  },
+
+  /**
+   * One-time handoff from Google Workspace Add-on → web session.
+   * Browser hits this via the Vercel /api rewrite so the session cookie is
+   * bound to the frontend host (same pattern as OAuth callback).
+   */
+  async addonHandoff(req: Request, res: Response): Promise<void> {
+    const frontend = config.frontendUrl;
+    const ticket = typeof req.query.ticket === "string" ? req.query.ticket : "";
+    const payload = ticket ? AddonHandoff.consume(ticket) : null;
+
+    if (!payload) {
+      res.redirect(`${frontend}/login?error=addon_handoff_expired`);
+      return;
+    }
+
+    const user = UserModel.upsertFromGoogle({
+      id: payload.googleId,
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+      accessToken: payload.accessToken,
+    });
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        req.logIn(user, (err) => (err ? reject(err) : resolve()));
+      });
+      await saveSession(req);
+      void audit({ type: "auth.login", userId: user.id, email: user.email });
+      res.redirect(`${frontend}/dashboard`);
+    } catch (err) {
+      console.error("[auth] addon handoff login failed:", err);
+      res.redirect(`${frontend}/login?error=addon_handoff_failed`);
+    }
   },
 
   me(req: Request, res: Response): void {
