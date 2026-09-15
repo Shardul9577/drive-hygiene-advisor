@@ -32,9 +32,16 @@ export function createApp() {
   );
 
   app.use(
-    cors({
-      origin: config.frontendOrigins,
-      credentials: true,
+    cors((req, callback) => {
+      // Google Add-on + browser tests: allow any origin on this path only.
+      if (req.path === "/google-addon") {
+        callback(null, { origin: true });
+        return;
+      }
+      callback(null, {
+        origin: config.frontendOrigins,
+        credentials: true,
+      });
     }),
   );
   app.use(express.json({ limit: "256kb" }));
