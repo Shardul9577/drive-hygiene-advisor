@@ -44,6 +44,8 @@ export function createApp() {
       secret: config.sessionSecret,
       resave: false,
       saveUninitialized: false,
+      // Render / Vercel terminate TLS; without this, Secure cookies are dropped.
+      proxy: true,
       // memorystore prunes expired sessions; default MemoryStore never does and
       // leaks. Multi-instance production should swap this for Redis/Postgres.
       store: new MemoryStore({
@@ -51,10 +53,8 @@ export function createApp() {
       }),
       cookie: {
         httpOnly: true,
-        // Production frontend (Vercel) and API are different sites; lax blocks
-        // credentialed cross-origin fetches. Local Vite → local API can use lax.
-        sameSite: config.nodeEnv === "production" ? "none" : "lax",
-        secure: config.nodeEnv === "production",
+        sameSite: config.cookie.sameSite,
+        secure: config.cookie.secure,
         // Aligned with Google access-token lifetime so the cookie cannot outlive
         // a usable Drive credential.
         maxAge: config.sessionMaxAgeMs,

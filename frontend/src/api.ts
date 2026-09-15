@@ -9,7 +9,12 @@ import type {
   User,
 } from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+// Locally talk to the Express API. On Vercel, leave this unset so requests go
+// same-origin through vercel.json rewrites — that keeps the session cookie on
+// the frontend domain (cross-site cookies to onrender.com get dropped).
+const API_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "http://localhost:4000" : "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;

@@ -20,6 +20,12 @@ function redirectBase(req: Request): string {
   return config.frontendUrl;
 }
 
+function saveSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.save((err) => (err ? reject(err) : resolve()));
+  });
+}
+
 export const AuthController = {
   status(_req: Request, res: Response): void {
     res.json({
@@ -31,7 +37,7 @@ export const AuthController = {
     });
   },
 
-  googleStart(req: Request, res: Response, next: (err?: unknown) => void): void {
+  async googleStart(req: Request, res: Response, next: (err?: unknown) => void): Promise<void> {
     if (!isGoogleConfigured()) {
       res.status(503).json({
         error:
@@ -47,6 +53,15 @@ export const AuthController = {
       req.session.oauthReturnOrigin = returnOrigin.replace(/\/$/, "");
     } else {
       delete req.session.oauthReturnOrigin;
+    }
+
+    try {
+      // Persist returnOrigin + let Passport write OAuth `state` before redirecting.
+      // Without this, MemoryStore can lose the session mid-hop → auth_failed.
+      await saveSession(req);
+    } catch (err) {
+      next(err);
+      return;
     }
 
     // No accessType: "offline". Offline access exists to obtain a refresh token
@@ -78,13 +93,20 @@ export const AuthController = {
         return;
       }
 
-      req.logIn(user, (loginErr) => {
+      req.logIn(user, async (loginErr) => {
         if (loginErr) {
           res.redirect(`${frontend}/login?error=login_failed`);
           return;
         }
-        // Same Google OAuth flow covers first-time sign-up and returning login
         delete req.session.oauthReturnOrigin;
+        try {
+          // Ensure the session cookie is committed before leaving Render/Vercel.
+          await saveSession(req);
+        } catch (saveErr) {
+          console.error("[auth] session save failed after login:", saveErr);
+          res.redirect(`${frontend}/login?error=login_failed`);
+          return;
+        }
         res.redirect(`${frontend}/dashboard`);
       });
     })(req, res, next);
@@ -111,7 +133,11 @@ export const AuthController = {
         return;
       }
       req.session.destroy(() => {
-        res.clearCookie("connect.sid");
+        res.clearCookie("connect.sid", {
+          httpOnly: true,
+          sameSite: config.cookie.sameSite,
+          secure: config.cookie.secure,
+        });
         res.json({ ok: true });
       });
     });

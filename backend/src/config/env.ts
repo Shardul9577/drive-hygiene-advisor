@@ -45,6 +45,25 @@ function resolveFrontendOrigins(): string[] {
 
 const frontendOrigins = resolveFrontendOrigins();
 
+/**
+ * Vercel (HTTPS) + Render (HTTPS) are different sites. Credentialed fetches only
+ * keep the session cookie when it is SameSite=None; Secure. Local Vite → local
+ * API can stay on Lax.
+ */
+function resolveCookiePolicy(): { sameSite: "lax" | "none"; secure: boolean } {
+  if (process.env.COOKIE_SAME_SITE === "none") {
+    return { sameSite: "none", secure: true };
+  }
+  if (process.env.COOKIE_SAME_SITE === "lax") {
+    return { sameSite: "lax", secure: nodeEnv === "production" };
+  }
+  const needsCrossSite = frontendOrigins.some((origin) => origin.startsWith("https://"));
+  if (nodeEnv === "production" || needsCrossSite) {
+    return { sameSite: "none", secure: true };
+  }
+  return { sameSite: "lax", secure: false };
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv,
@@ -52,6 +71,7 @@ export const config = {
   frontendUrl: frontendOrigins[0] ?? "http://localhost:5173",
   /** All origins allowed for CORS + OAuth return redirects. */
   frontendOrigins,
+  cookie: resolveCookiePolicy(),
   sessionSecret: resolveSessionSecret(),
   /**
    * Access tokens from Google last ~1 hour. The session cookie is capped to the
