@@ -1,0 +1,23 @@
+{
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive.addons.metadata.readonly"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Drive Hygiene Advisor",
+      "logoUrl": "https://drive-hygiene-advisor-two.vercel.app/logo.png",
+      "openLinkUrlPrefixes": [
+        "https://drive-hygiene-advisor-two.vercel.app/"
+      ]
+    },
+    "drive": {
+      "homepageTrigger": {
+        "runFunction": "https://drive-hygiene-advisor.onrender.com/google-addon"
+      }
+    },
+    "httpOptions": {
+      "authorizationHeader": "NONE",
+      "granularOauthPermissionSupport": "OPT_IN"
+    }
+  }
+}

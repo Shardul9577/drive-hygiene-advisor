@@ -5,7 +5,7 @@
       "destination": "https://drive-hygiene-advisor.onrender.com/api/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
