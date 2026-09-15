@@ -3,6 +3,23 @@ import passport from "passport";
 import { config, isGoogleConfigured } from "../config/env.js";
 import { UserModel } from "../models/UserModel.js";
 
+declare module "express-session" {
+  interface SessionData {
+    oauthReturnOrigin?: string;
+  }
+}
+
+function isAllowedOrigin(origin: string | undefined): origin is string {
+  return Boolean(origin && config.frontendOrigins.includes(origin.replace(/\/$/, "")));
+}
+
+/** Prefer the frontend that started login; fall back to the default allowlisted origin. */
+function redirectBase(req: Request): string {
+  const fromSession = req.session.oauthReturnOrigin;
+  if (isAllowedOrigin(fromSession)) return fromSession.replace(/\/$/, "");
+  return config.frontendUrl;
+}
+
 export const AuthController = {
   status(_req: Request, res: Response): void {
     res.json({
@@ -10,6 +27,7 @@ export const AuthController = {
       loginUrl: "/api/auth/google",
       callbackUrl: config.google.callbackUrl,
       frontendUrl: config.frontendUrl,
+      frontendOrigins: config.frontendOrigins,
     });
   },
 
@@ -23,6 +41,14 @@ export const AuthController = {
       return;
     }
 
+    const returnOrigin =
+      typeof req.query.returnOrigin === "string" ? req.query.returnOrigin : undefined;
+    if (isAllowedOrigin(returnOrigin)) {
+      req.session.oauthReturnOrigin = returnOrigin.replace(/\/$/, "");
+    } else {
+      delete req.session.oauthReturnOrigin;
+    }
+
     // No accessType: "offline". Offline access exists to obtain a refresh token
     // for acting on a user's behalf while they are away; this product only
     // reads metadata while someone is looking at the dashboard, so asking for a
@@ -34,31 +60,32 @@ export const AuthController = {
   },
 
   googleCallback(req: Request, res: Response, next: (err?: unknown) => void): void {
+    const frontend = redirectBase(req);
+
     if (!isGoogleConfigured()) {
-      res.redirect(`${config.frontendUrl}/login?error=oauth_not_configured`);
+      res.redirect(`${frontend}/login?error=oauth_not_configured`);
       return;
     }
 
     passport.authenticate("google", (err: Error | null, user: Express.User | false) => {
       if (err) {
         console.error("[auth] Google callback error:", err.message);
-        res.redirect(
-          `${config.frontendUrl}/login?error=${encodeURIComponent(err.message)}`,
-        );
+        res.redirect(`${frontend}/login?error=${encodeURIComponent(err.message)}`);
         return;
       }
       if (!user) {
-        res.redirect(`${config.frontendUrl}/login?error=auth_failed`);
+        res.redirect(`${frontend}/login?error=auth_failed`);
         return;
       }
 
       req.logIn(user, (loginErr) => {
         if (loginErr) {
-          res.redirect(`${config.frontendUrl}/login?error=login_failed`);
+          res.redirect(`${frontend}/login?error=login_failed`);
           return;
         }
         // Same Google OAuth flow covers first-time sign-up and returning login
-        res.redirect(`${config.frontendUrl}/dashboard`);
+        delete req.session.oauthReturnOrigin;
+        res.redirect(`${frontend}/dashboard`);
       });
     })(req, res, next);
   },

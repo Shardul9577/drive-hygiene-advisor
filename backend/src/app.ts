@@ -32,7 +32,7 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: config.frontendUrl,
+      origin: config.frontendOrigins,
       credentials: true,
     }),
   );
@@ -51,7 +51,9 @@ export function createApp() {
       }),
       cookie: {
         httpOnly: true,
-        sameSite: "lax",
+        // Production frontend (Vercel) and API are different sites; lax blocks
+        // credentialed cross-origin fetches. Local Vite → local API can use lax.
+        sameSite: config.nodeEnv === "production" ? "none" : "lax",
         secure: config.nodeEnv === "production",
         // Aligned with Google access-token lifetime so the cookie cannot outlive
         // a usable Drive credential.

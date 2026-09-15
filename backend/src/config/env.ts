@@ -30,10 +30,28 @@ function resolveSessionSecret(): string {
   return "dev-session-secret-change-me";
 }
 
+/**
+ * FRONTEND_URL may be a single origin or a comma-separated allowlist.
+ * The first entry is the default redirect target after OAuth.
+ */
+function resolveFrontendOrigins(): string[] {
+  const fromPrimary = process.env.FRONTEND_URL ?? "http://localhost:5173";
+  const fromExtra = process.env.FRONTEND_URLS ?? "";
+  const origins = [...fromPrimary.split(","), ...fromExtra.split(",")]
+    .map((value) => value.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  return [...new Set(origins)];
+}
+
+const frontendOrigins = resolveFrontendOrigins();
+
 export const config = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv,
-  frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
+  /** Default post-OAuth redirect (first allowlisted origin). */
+  frontendUrl: frontendOrigins[0] ?? "http://localhost:5173",
+  /** All origins allowed for CORS + OAuth return redirects. */
+  frontendOrigins,
   sessionSecret: resolveSessionSecret(),
   /**
    * Access tokens from Google last ~1 hour. The session cookie is capped to the

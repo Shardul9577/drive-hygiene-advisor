@@ -5,7 +5,7 @@ const app = createApp();
 
 app.listen(config.port, () => {
   console.log(`Backend listening on http://localhost:${config.port}`);
-  console.log(`Frontend expected at ${config.frontendUrl}`);
+  console.log(`Frontend origins allowed: ${config.frontendOrigins.join(", ")}`);
   console.log(
     isGoogleConfigured()
       ? "Google OAuth: configured"

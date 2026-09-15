@@ -57,7 +57,10 @@ export const api = {
 
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
 
-  googleLoginUrl: () => `${API_URL}/api/auth/google`,
+  googleLoginUrl: () => {
+    const returnOrigin = encodeURIComponent(window.location.origin);
+    return `${API_URL}/api/auth/google?returnOrigin=${returnOrigin}`;
+  },
 
   startScan: (body?: StartScanBody) =>
     request<{ jobId: string; status: string; summary: HygieneSummary | null }>("/api/scan", {
